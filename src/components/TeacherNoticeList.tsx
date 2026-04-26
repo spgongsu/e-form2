@@ -6,7 +6,7 @@
 import { useEffect, useState, ReactNode } from "react";
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { Notice } from "../types";
+import { Notice, ResponseData } from "../types";
 import { 
   Plus, 
   Search, 
@@ -39,6 +39,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [responseStats, setResponseStats] = useState<Record<string, { positive: number, negative: number }>>({});
 
   useEffect(() => {
     const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
@@ -46,6 +47,34 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice));
       setNotices(data);
       setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "responses"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const stats: Record<string, { positive: number, negative: number }> = {};
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data() as ResponseData;
+        if (!data.noticeId) return;
+        
+        if (!stats[data.noticeId]) {
+          stats[data.noticeId] = { positive: 0, negative: 0 };
+        }
+        
+        // 긍정적 키워드로 판별
+        const resValue = data.response;
+        const isPositive = resValue.includes("동의") || 
+                           resValue.includes("참여") || 
+                           resValue.includes("참가") ||
+                           resValue === "네" ||
+                           resValue.includes("희망");
+                           
+        if (isPositive) stats[data.noticeId].positive++;
+        else stats[data.noticeId].negative++;
+      });
+      setResponseStats(stats);
     });
     return () => unsubscribe();
   }, []);
@@ -103,6 +132,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
               <tr>
                 <th className="px-6 py-4">제목</th>
                 <th className="px-6 py-4">상태</th>
+                <th className="px-6 py-4 text-center">응답 현황</th>
                 <th className="px-6 py-4">등록일</th>
                 <th className="px-6 py-4 text-right">관리</th>
               </tr>
@@ -111,12 +141,12 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
               {loading ? (
                 [1, 2, 3].map(i => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={4} className="px-6 py-6"><div className="h-4 bg-slate-100 rounded w-1/2"></div></td>
+                    <td colSpan={5} className="px-6 py-6"><div className="h-4 bg-slate-100 rounded w-1/2"></div></td>
                   </tr>
                 ))
               ) : filteredNotices.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center">
                       <FileText className="h-8 w-8 mb-2 opacity-20" />
                       검색된 안내장이 없습니다.
@@ -126,7 +156,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
               ) : (
                 filteredNotices.map((notice) => (
                   <tr key={notice.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <button 
                         onClick={() => notice.imageUrl && setPreviewImage(notice.imageUrl)}
                         className="flex items-center gap-3 text-left outline-none group/title"
@@ -147,7 +177,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
                         </div>
                         <div className="flex flex-col">
                           <span className={cn(
-                            "font-bold text-slate-900 group-hover/title:text-blue-600 transition-colors",
+                            "font-bold text-slate-900 group-hover/title:text-blue-600 transition-colors truncate max-w-[200px]",
                             notice.imageUrl && "underline decoration-slate-200 underline-offset-4 decoration-2"
                           )}>
                             {notice.title}
@@ -160,47 +190,56 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
                         </div>
                       </button>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <span className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight",
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest",
                         notice.status === "open" 
                           ? "bg-emerald-100 text-emerald-700" 
                           : "bg-red-100 text-red-700"
                       )}>
-                        {notice.status === "open" ? "진행 중" : "접수 마감"}
+                        {notice.status === "open" ? "진행" : "마감"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 font-mono text-xs">
+                    <td className="px-6 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-sm font-black text-blue-600 tabular-nums">
+                          {responseStats[notice.id]?.positive || 0}
+                        </span>
+                        <span className="text-slate-200 font-normal">/</span>
+                        <span className="text-sm font-black text-red-600 tabular-nums">
+                          {responseStats[notice.id]?.negative || 0}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-slate-500 font-mono text-xs">
                       {formatDateSimple(notice.createdAt)}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                    <td className="px-6 py-3 text-right">
+                      <div className="flex justify-end gap-1.5">
                         <ActionButton 
-                          icon={<BarChart3 size={14} />} 
-                          label="결과 확인"
+                          icon={<BarChart3 size={13} />} 
+                          label="결과"
                           onClick={() => onViewResults(notice.id)} 
                         />
                         <ActionButton 
-                          icon={<Copy size={14} />} 
-                          label="링크 복사"
+                          icon={<Copy size={13} />} 
+                          label="복사"
                           onClick={() => copyLink(notice.id)} 
                         />
                         <ActionButton 
-                          icon={notice.status === "open" ? <Lock size={14} /> : <Unlock size={14} />} 
-                          label={notice.status === "open" ? "마감 처리" : "접수 재개"}
+                          icon={notice.status === "open" ? <Lock size={13} /> : <Unlock size={13} />} 
+                          label={notice.status === "open" ? "마감" : "재개"}
                           variant={notice.status === "open" ? "danger" : "success"}
                           onClick={() => toggleStatus(notice)} 
                         />
-                        <div className="w-px h-8 bg-slate-200 mx-1" />
+                        <div className="w-px h-6 bg-slate-200 mx-0.5 self-center" />
                         <ActionButton 
-                          icon={<Edit3 size={14} />} 
-                          title="수정"
+                          icon={<Edit3 size={13} />} 
                           onClick={() => onEdit(notice.id)} 
                         />
                         <ActionButton 
-                          icon={<Trash2 size={14} />} 
-                          title="삭제"
-                          variant="danger"
+                          icon={<Trash2 size={13} />} 
+                          variant="danger" 
                           onClick={() => handleDelete(notice.id)} 
                         />
                       </div>

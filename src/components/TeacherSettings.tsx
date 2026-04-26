@@ -64,6 +64,23 @@ export default function TeacherSettings() {
         </div>
 
         <div className="space-y-6">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+            <h5 className="flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-wider mb-2">
+              <ShieldCheck className="h-3 w-3" />
+              설정 가이드
+            </h5>
+            <ul className="space-y-1.5 text-[11px] leading-relaxed text-blue-600 font-medium">
+              <li className="flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span><strong>GAS 배포 URL:</strong> 구글 시트 [확장 프로그램 &gt; Apps Script]에서 PDF 저장 스크립트 작성 후 [배포 &gt; 웹 앱]으로 발행한 URL입니다. (권한: 모든 사용자)</span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span><strong>저장될 폴더 ID:</strong> 구글 드라이브에서 파일을 모을 폴더를 생성하고, 주소창URL의 <code>folders/</code> 뒷부분 문자열을 복사해서 입력하세요.</span>
+              </li>
+            </ul>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700">GAS 배포 URL (Web App)</label>
             <input 
