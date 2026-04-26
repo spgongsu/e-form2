@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -----------------------------------------------------------
+    // 1. Global Safety Net
+    // -----------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------
+    // 2. Global Helpers
+    // -----------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isVerifiedTeacher() { return isSignedIn() && request.auth.token.email.endsWith('@gmail.com'); } // Simple teacher check
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { return id is string && id.size() <= 128; }
+
+    // -----------------------------------------------------------
+    // 3. Notices Collection
+    // -----------------------------------------------------------
+    match /notices/{noticeId} {
+      allow read: if true; // Publicly readable for parents with the link
+      allow create: if isVerifiedTeacher() && isValidNotice(incoming());
+      allow update: if isVerifiedTeacher() && isValidNotice(incoming());
+      allow delete: if isVerifiedTeacher();
+      
+      function isValidNotice(data) {
+        return data.title is string && data.title.size() <= 200
+            && data.content is string && data.content.size() <= 5000
+            && data.responseType in ['agree_disagree', 'participate_absent', 'direct_input']
+            && data.status in ['open', 'closed'];
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 4. Students Collection
+    // -----------------------------------------------------------
+    match /students/{studentId} {
+      allow read, write: if isVerifiedTeacher();
+    }
+
+    // -----------------------------------------------------------
+    // 5. Responses Collection
+    // -----------------------------------------------------------
+    match /responses/{responseId} {
+      allow read: if isVerifiedTeacher(); // Only teacher can see results
+      allow create: if isSignedIn() && isValidResponse(incoming()); // Parents (even anonymous) can submit
+      allow delete: if isVerifiedTeacher();
+      
+      function isValidResponse(data) {
+        return data.noticeId is string 
+            && data.studentName is string && data.studentName.size() <= 100
+            && data.response is string && data.response.size() <= 500
+            && data.signatureUrl is string && data.signatureUrl.size() <= 1000000; // Large for base64 signature
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 6. Config Collection
+    // -----------------------------------------------------------
+    match /config/settings {
+      allow read: if true; // Needed for GAS URL lookup during submission
+      allow write: if isVerifiedTeacher();
+    }
+  }
+}

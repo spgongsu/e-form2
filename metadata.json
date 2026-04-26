@@ -1,0 +1,6 @@
+{
+  "name": "e-가정통신문",
+  "description": "교사와 학부모를 위한 스마트 전자 가정통신문 서비스. 전자 서명 및 자동 취합 기능을 제공합니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

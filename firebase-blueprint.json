@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Notice": {
+      "title": "안내장",
+      "description": "교사가 발행하는 가정통신문 정보",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "responseType": { "type": "string", "enum": ["agree_disagree", "participate_absent", "direct_input"] },
+        "customOptions": { "type": "array" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "createdAt": { "type": "number" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["title", "content", "responseType", "status", "createdAt", "authorId"]
+    },
+    "Student": {
+      "title": "학생",
+      "description": "학부모 주소록 데이터",
+      "type": "object",
+      "properties": {
+        "grade": { "type": "string" },
+        "class": { "type": "string" },
+        "studentName": { "type": "string" },
+        "parentName": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["grade", "studentName", "phone"]
+    },
+    "Response": {
+      "title": "응답",
+      "description": "학부모가 제출한 회신 정보",
+      "type": "object",
+      "properties": {
+        "noticeId": { "type": "string" },
+        "grade": { "type": "string" },
+        "studentName": { "type": "string" },
+        "parentName": { "type": "string" },
+        "relation": { "type": "string" },
+        "response": { "type": "string" },
+        "signatureUrl": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["noticeId", "grade", "studentName", "parentName", "response", "signatureUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "notices/{noticeId}": {
+      "schema": "Notice",
+      "description": "안내장 컬렉션"
+    },
+    "students/{studentId}": {
+      "schema": "Student",
+      "description": "학생 주소록 컬렉션"
+    },
+    "responses/{responseId}": {
+      "schema": "Response",
+      "description": "응답 데이터 컬렉션"
+    },
+    "config/settings": {
+      "schema": { "type": "object" },
+      "description": "환경 설정"
+    }
+  }
+}
