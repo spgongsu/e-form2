@@ -103,54 +103,62 @@ export default function ParentView({ formId }: Props) {
         createdAt: Date.now()
       };
 
-      // 1. Save to Firestore
+      // 1. Save to Firestore (Wait for this)
       await addDoc(collection(db, "responses"), responseData);
 
-      // 2. Generate PDF and send to GAS
-      if (settings?.gasUrl && printableRef.current) {
-        const primaryChild = children[0];
-        const fileNameBase = children.map(c => `${c.grade}학년_${c.name}`).join("_");
-        const element = printableRef.current;
-        const opt = {
-          margin: 0,
-          filename: `${fileNameBase}_가정통신문.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        // Convert to Blob
-        const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      // 2. Try PDF/GAS in background (Don't let it block success UI)
+      const tryProcessPdf = async () => {
+        if (!settings?.gasUrl || !settings.gasUrl.startsWith("http") || !printableRef.current) return;
         
-        // Convert Blob to Base64
-        const reader = new FileReader();
-        reader.readAsDataURL(pdfBlob);
-        reader.onloadend = async () => {
-          const base64data = reader.result as string;
-          const pureBase64 = base64data.split(',')[1];
+        try {
+          const fileNameBase = children.map(c => `${c.grade}학년_${c.name}`).join("_");
+          const element = printableRef.current;
+          const opt = {
+            margin: 0,
+            filename: `${fileNameBase}_가정통신문.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
 
-          // Send to GAS
-          try {
-            await fetch(settings.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "text/plain;charset=utf-8" },
-              body: JSON.stringify({
-                fileName: `${notice.title}_${fileNameBase}.pdf`,
-                folderId: settings.driveFolderId,
-                fileData: pureBase64
-              })
-            });
-          } catch (gasError) {
-            console.error("GAS transmission error", gasError);
-          }
-        };
-      }
+          // Generate PDF
+          const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+          
+          // Blob to Base64
+          const reader = new FileReader();
+          reader.readAsDataURL(pdfBlob);
+          reader.onloadend = async () => {
+            const base64data = reader.result as string;
+            const pureBase64 = base64data.split(',')[1];
 
+            try {
+              await fetch(settings.gasUrl!, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({
+                  fileName: `${notice.title}_${fileNameBase}.pdf`,
+                  folderId: settings.driveFolderId,
+                  fileData: pureBase64
+                })
+              });
+            } catch (err) {
+              console.warn("GAS Submission failed (Silent)", err);
+            }
+          };
+        } catch (err) {
+          console.warn("PDF generation failed (Silent)", err);
+        }
+      };
+
+      tryProcessPdf();
+
+      // 3. Set success state
       setSubmitted(true);
+      window.scrollTo(0, 0);
     } catch (err) {
-      console.error(err);
-      alert("제출 중 오류가 발생했습니다.");
+      console.error("Submission error:", err);
+      alert("제출 중 오류가 발생했습니다! (DB 저장 실패)");
     } finally {
       setSubmitting(false);
     }
