@@ -138,6 +138,7 @@ export default function ParentView({ formId }: Props) {
                 headers: { "Content-Type": "text/plain" },
                 body: JSON.stringify({
                   fileName: `${notice.title}_${fileNameBase}.pdf`,
+                  noticeTitle: notice.title,
                   folderId: settings.driveFolderId,
                   fileData: pureBase64
                 })
