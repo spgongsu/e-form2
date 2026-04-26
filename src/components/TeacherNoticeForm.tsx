@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { Notice } from "../types";
@@ -51,7 +51,7 @@ export default function TeacherNoticeForm({ noticeId, onCancel, onSuccess }: Pro
     }
   }, [noticeId]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -79,7 +79,7 @@ export default function TeacherNoticeForm({ noticeId, onCancel, onSuccess }: Pro
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title || !content) return;
 
@@ -126,97 +126,26 @@ export default function TeacherNoticeForm({ noticeId, onCancel, onSuccess }: Pro
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-        {/* Left Side: Form Fields */}
-        <div className="space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">안내장 제목</label>
-            <input
-              required
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 현장체험학습 참가 신청서"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">안내장 본문 내용</label>
-            <textarea
-              required
-              rows={8}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="상세 내용을 입력하세요..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">응답 유형</label>
-            <div className="grid grid-cols-1 gap-2">
-              <TypeSelector 
-                active={responseType === "agree_disagree"} 
-                label="동의 / 미동의" 
-                onClick={() => setResponseType("agree_disagree")}
-              />
-              <TypeSelector 
-                active={responseType === "participate_absent"} 
-                label="참여 / 불참" 
-                onClick={() => setResponseType("participate_absent")}
-              />
-              <TypeSelector 
-                active={responseType === "direct_input"} 
-                label="사용자 정의" 
-                onClick={() => setResponseType("direct_input")}
-              />
-            </div>
-            
-            {responseType === "direct_input" && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="mt-4 space-y-2 rounded-lg bg-slate-50 p-4 border border-slate-100"
-              >
-                <label className="text-xs font-bold text-slate-500">옵션 설정</label>
-                {customOptions.map((opt, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={opt}
-                      onChange={(e) => {
-                        const next = [...customOptions];
-                        next[i] = e.target.value;
-                        setCustomOptions(next);
-                      }}
-                      className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                    />
-                    {customOptions.length > 2 && (
-                      <button type="button" onClick={() => setCustomOptions(customOptions.filter((_, idx) => idx !== i))} className="p-1.5 hover:text-red-500 transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button 
-                  type="button"
-                  onClick={() => setCustomOptions([...customOptions, ""])}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 mt-2"
-                >
-                  + 옵션 추가
-                </button>
-              </motion.div>
-            )}
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-10">
+        {/* Title Section */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">안내장 제목</label>
+          <input
+            required
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 현장체험학습 참가 신청서"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-base font-bold outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+          />
         </div>
 
-        {/* Right Side: Image Upload & Preview */}
-        <div className="flex flex-col h-full">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">대표 이미지</label>
+        {/* Image Upload Section - Moved under Title */}
+        <div className="space-y-4">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">안내장 이미지 등록</label>
           <div 
             className={cn(
-              "relative flex-grow min-h-[300px] flex flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-all",
+              "relative aspect-[3/4] max-w-md mx-auto flex flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed transition-all",
               imageUrl 
               ? "border-slate-200 bg-slate-50" 
               : "border-slate-200 bg-slate-100/50 hover:border-blue-300 hover:bg-blue-50/30"
@@ -238,7 +167,7 @@ export default function TeacherNoticeForm({ noticeId, onCancel, onSuccess }: Pro
                 <div className="mb-4 rounded-xl bg-white p-4 shadow-sm border border-slate-100">
                   <ImageIcon className="h-8 w-8 text-slate-400" />
                 </div>
-                <p className="text-sm font-bold text-slate-800">이미지 업로드</p>
+                <p className="text-sm font-bold text-slate-800">안내장 이미지 업로드</p>
                 <p className="mt-1 text-[11px] text-slate-500">사진을 클릭하거나 끌어오세요</p>
                 <input
                   type="file"
@@ -254,24 +183,95 @@ export default function TeacherNoticeForm({ noticeId, onCancel, onSuccess }: Pro
               </div>
             )}
           </div>
+        </div>
 
-          <div className="mt-8 flex gap-3">
-            <button
-              onClick={onCancel}
-              type="button"
-              className="flex-1 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
-            >
-              취소
-            </button>
-            <button
-              disabled={loading || !title || !content}
-              type="submit"
-              className="flex-[2] flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              {noticeId ? "수정 완료" : "발행하기"}
-            </button>
+        {/* Extra Info Section - Repurposed from Content */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">선택사항 (추가 안내사항 및 강조사항)</label>
+          <textarea
+            rows={4}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="학부모님께 강조하고 싶은 내용이나 추가 안내사항이 있으면 입력하세요. (비워두면 나타나지 않습니다)"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+          />
+        </div>
+
+        {/* Response Type Section */}
+        <div className="space-y-4">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">응답 유형</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <TypeSelector 
+              active={responseType === "agree_disagree"} 
+              label="동의 / 미동의" 
+              onClick={() => setResponseType("agree_disagree")}
+            />
+            <TypeSelector 
+              active={responseType === "participate_absent"} 
+              label="참여 / 불참" 
+              onClick={() => setResponseType("participate_absent")}
+            />
+            <TypeSelector 
+              active={responseType === "direct_input"} 
+              label="사용자 정의" 
+              onClick={() => setResponseType("direct_input")}
+            />
           </div>
+          
+          {responseType === "direct_input" && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 space-y-2 rounded-lg bg-slate-50 p-4 border border-slate-100"
+            >
+              <label className="text-xs font-bold text-slate-500">옵션 설정</label>
+              {customOptions.map((opt, i) => (
+                <div key={i} className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={opt}
+                    onChange={(e) => {
+                      const next = [...customOptions];
+                      next[i] = e.target.value;
+                      setCustomOptions(next);
+                    }}
+                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                  />
+                  {customOptions.length > 2 && (
+                    <button type="button" onClick={() => setCustomOptions(customOptions.filter((_, idx) => idx !== i))} className="p-1.5 hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button 
+                type="button"
+                onClick={() => setCustomOptions([...customOptions, ""])}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 mt-2"
+              >
+                + 옵션 추가
+              </button>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="pt-6 flex gap-3 border-t border-slate-100">
+          <button
+            onClick={onCancel}
+            type="button"
+            className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
+          >
+            취소
+          </button>
+          <button
+            disabled={loading || !title}
+            type="submit"
+            className="flex-[2] flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-50"
+          >
+            <Save className="h-5 w-5" />
+            {noticeId ? "안내장 수정 완료" : "안내장 발행하기"}
+          </button>
         </div>
       </form>
     </div>

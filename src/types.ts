@@ -24,12 +24,16 @@ export interface Student {
   phone: string;
 }
 
+export interface ChildInfo {
+  grade: string;
+  name: string;
+}
+
 export interface ResponseData {
   id: string;
   noticeId: string;
   studentId?: string;
-  grade: string;
-  studentName: string;
+  children: ChildInfo[];
   parentName: string;
   relation: string;
   response: string; // "동의함", "참여함" 등

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { Notice } from "../types";
@@ -19,10 +19,14 @@ import {
   Eye,
   CheckCircle2,
   XCircle,
-  FileText
+  FileText,
+  X,
+  Lock,
+  Unlock,
+  ZoomIn
 } from "lucide-react";
-import { motion } from "motion/react";
-import { cn, formatDate } from "../lib/utils";
+import { motion, AnimatePresence } from "motion/react";
+import { cn, formatDateSimple } from "../lib/utils";
 
 interface Props {
   onCreate: () => void;
@@ -34,6 +38,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
   const [notices, setNotices] = useState<Notice[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
@@ -68,7 +73,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
 
   const filteredNotices = notices.filter(n => 
     n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    n.content.toLowerCase().includes(searchTerm.toLowerCase())
+    (n.content && n.content.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -85,8 +90,8 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          총 {filteredNotices.length}건의 안내장
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+          TOTAL {filteredNotices.length}
         </div>
       </div>
 
@@ -102,7 +107,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
                 <th className="px-6 py-4 text-right">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-sm italic-none">
+            <tbody className="divide-y divide-slate-50 text-sm">
               {loading ? (
                 [1, 2, 3].map(i => (
                   <tr key={i} className="animate-pulse">
@@ -122,46 +127,71 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
                 filteredNotices.map((notice) => (
                   <tr key={notice.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200">
+                      <button 
+                        onClick={() => notice.imageUrl && setPreviewImage(notice.imageUrl)}
+                        className="flex items-center gap-3 text-left outline-none group/title"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 relative">
                           {notice.imageUrl ? (
-                            <img src={notice.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <>
+                              <img src={notice.imageUrl} alt="" className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/title:opacity-100 transition-opacity flex items-center justify-center">
+                                <ZoomIn className="w-4 h-4 text-white" />
+                              </div>
+                            </>
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-300">
                               <FileText size={18} />
                             </div>
                           )}
                         </div>
-                        <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                          {notice.title}
-                        </span>
-                      </div>
+                        <div className="flex flex-col">
+                          <span className={cn(
+                            "font-bold text-slate-900 group-hover/title:text-blue-600 transition-colors",
+                            notice.imageUrl && "underline decoration-slate-200 underline-offset-4 decoration-2"
+                          )}>
+                            {notice.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 mt-0.5 uppercase font-bold tracking-tight">
+                            {notice.responseType === "agree_disagree" && "동의 확인"}
+                            {notice.responseType === "participate_absent" && "참여 조사"}
+                            {notice.responseType === "direct_input" && "사용자 정의"}
+                          </span>
+                        </div>
+                      </button>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight",
                         notice.status === "open" 
                           ? "bg-emerald-100 text-emerald-700" 
-                          : "bg-slate-100 text-slate-500"
+                          : "bg-red-100 text-red-700"
                       )}>
-                        {notice.status === "open" ? "진행 중" : "마감"}
+                        {notice.status === "open" ? "진행 중" : "접수 마감"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">
-                      {formatDate(notice.createdAt).split(" ")[0]}
+                      {formatDateSimple(notice.createdAt)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-2">
                         <ActionButton 
                           icon={<BarChart3 size={14} />} 
-                          title="결과 확인"
+                          label="결과 확인"
                           onClick={() => onViewResults(notice.id)} 
                         />
                         <ActionButton 
                           icon={<Copy size={14} />} 
-                          title="링크 복사"
+                          label="링크 복사"
                           onClick={() => copyLink(notice.id)} 
                         />
+                        <ActionButton 
+                          icon={notice.status === "open" ? <Lock size={14} /> : <Unlock size={14} />} 
+                          label={notice.status === "open" ? "마감 처리" : "접수 재개"}
+                          variant={notice.status === "open" ? "danger" : "success"}
+                          onClick={() => toggleStatus(notice)} 
+                        />
+                        <div className="w-px h-8 bg-slate-200 mx-1" />
                         <ActionButton 
                           icon={<Edit3 size={14} />} 
                           title="수정"
@@ -183,7 +213,7 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
         </div>
       </div>
 
-      {/* Stats Section from Theme */}
+      {/* Stats Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
@@ -206,23 +236,52 @@ export default function TeacherNoticeList({ onCreate, onViewResults, onEdit }: P
           </div>
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setPreviewImage(null)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative max-h-full max-w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-12 right-0 text-white hover:text-gray-300 flex items-center gap-2 font-bold"
+              >
+                닫기 <X className="w-6 h-6" />
+              </button>
+              <img src={previewImage} className="max-h-full max-w-full rounded-lg shadow-2xl" alt="Preview" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function ActionButton({ icon, onClick, title, variant = "default" }: { icon: React.ReactNode, onClick: () => void, title: string, variant?: "default" | "danger" }) {
+function ActionButton({ icon, onClick, title, label, variant = "default" }: { icon: ReactNode, onClick: () => void, title?: string, label?: string, variant?: "default" | "danger" | "success" }) {
+  const baseClasses = "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-md transition-all active:scale-90 font-bold text-[11px] outline-none";
+  const variants = {
+    default: "text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 bg-white",
+    danger: "text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 bg-white",
+    success: "text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 bg-white"
+  };
+
   return (
     <button
       onClick={onClick}
       title={title}
-      className={cn(
-        "p-2 border rounded-md transition-all active:scale-90",
-        variant === "danger" 
-          ? "text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50" 
-          : "text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 bg-white"
-      )}
+      className={cn(baseClasses, variants[variant])}
     >
       {icon}
+      {label && <span>{label}</span>}
     </button>
   );
 }

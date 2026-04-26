@@ -43,9 +43,17 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
     };
     fetchNotice();
 
-    const rq = query(collection(db, "responses"), where("noticeId", "==", noticeId), orderBy("createdAt", "desc"));
+    const rq = query(collection(db, "responses"), where("noticeId", "==", noticeId));
     const unsubR = onSnapshot(rq, (snapshot) => {
-      setResponses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResponseData)));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResponseData));
+      // In-memory sort as fallback for missing index
+      data.sort((a, b) => b.createdAt - a.createdAt);
+      setResponses(data);
+    }, (error) => {
+      console.error("Firestore error in TeacherResults:", error);
+      if (error.message.includes("requires an index")) {
+        alert("데이터 정렬을 위해 인덱스 생성이 필요합니다. 잠시만 기다려주세요.");
+      }
     });
 
     const sq = query(collection(db, "students"));
@@ -60,8 +68,7 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
     if (!notice) return;
     const excelData = responses.map((r, i) => ({
       "번호": i + 1,
-      "학년": r.grade,
-      "학생명": r.studentName,
+      "학적": r.children.map(c => `${c.grade}학년 ${c.name}`).join(", "),
       "학부모명": r.parentName,
       "관계": r.relation,
       "응답": r.response,
@@ -80,9 +87,30 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
 
   if (!notice) return null;
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between shrink-0">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-area, #printable-area * { visibility: visible; }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 20mm;
+            border: none;
+            box-shadow: none;
+          }
+        }
+      `}</style>
+      <div className="flex items-center justify-between shrink-0 print:hidden">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="rounded-lg bg-white p-2 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95">
             <ArrowLeft className="h-5 w-5 text-slate-600" />
@@ -93,6 +121,15 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
           </div>
         </div>
         <div className="flex gap-2">
+          {viewMode === "print" && (
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition-all active:scale-95"
+            >
+              <Printer className="h-4 w-4" />
+              진짜로 인쇄하기
+            </button>
+          )}
           <button 
             onClick={() => setViewMode(viewMode === "list" ? "print" : "list")}
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
@@ -128,11 +165,12 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
                   {responses.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-3 whitespace-nowrap">
-                        <span className="text-xs font-bold text-slate-400">{r.grade}학년</span>
+                        <div className="font-bold text-slate-900">{r.children.map(c => c.name).join(", ")}</div>
+                        <div className="text-[10px] text-slate-500">{r.children.map(c => `${c.grade}학년`).join(", ")}</div>
                       </td>
                       <td className="px-6 py-3 whitespace-nowrap">
-                        <div className="font-bold text-slate-900">{r.studentName}</div>
-                        <div className="text-[10px] text-slate-500">{r.parentName} ({r.relation})</div>
+                        <div className="font-bold text-slate-900">{r.parentName}</div>
+                        <div className="text-[10px] text-slate-500">관계: {r.relation}</div>
                       </td>
                       <td className="px-6 py-3 whitespace-nowrap text-center">
                         <span className={cn(
@@ -175,13 +213,13 @@ export default function TeacherResults({ noticeId, onBack }: Props) {
                   )}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{r.grade}학년</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">{r.children.map(c => `${c.grade}학년`).join(", ")}</span>
                     <span className={cn(
                       "text-[10px] font-bold px-1.5 py-0.5 rounded",
                       isPositive(r.response) ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600"
                     )}>{r.response}</span>
                   </div>
-                  <div className="font-bold text-slate-900">{r.studentName}</div>
+                  <div className="font-bold text-slate-900">{r.children.map(c => c.name).join(", ")}</div>
                   <div className="text-[10px] text-slate-500">{formatDate(r.createdAt).split(" ")[1]}</div>
                 </button>
               ))}

@@ -58,8 +58,8 @@ export default function PrintTemplate({ notice, response, isPrintMode = false }:
               <span className="text-sm font-bold text-gray-500 uppercase">기재 사항</span>
               <div className="h-px flex-1 bg-gray-200"></div>
             </div>
-            <div className="space-y-2">
-              <p className="text-lg"><strong>학적:</strong> {response.grade}학년 {response.studentName}</p>
+            <div className="space-y-3">
+              <p className="text-lg"><strong>학적:</strong> {response.children.map(c => `${c.grade}학년 ${c.name}`).join(", ")}</p>
               <p className="text-lg"><strong>학부모:</strong> {response.parentName} (관계: {response.relation})</p>
             </div>
           </div>

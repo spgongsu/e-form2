@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { Student } from "../types";
@@ -15,7 +15,8 @@ import {
   Trash2, 
   Search,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { motion } from "motion/react";
@@ -59,7 +60,7 @@ export default function TeacherAddressBook() {
     XLSX.writeFile(wb, "주소록_업로드_양식.xlsx");
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 

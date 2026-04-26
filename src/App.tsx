@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously, onAuthStateChanged, User, signOut } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -17,7 +17,9 @@ import {
   Loader2,
   ChevronRight,
   Menu,
-  X
+  X,
+  AlertCircle,
+  Plus
 } from "lucide-react";
 
 import TeacherNoticeList from "./components/TeacherNoticeList";
@@ -61,14 +63,18 @@ export default function App() {
   }, [formId]);
 
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleLogin = async () => {
+    console.log("Starting Google Login...");
     setLoginError(null);
+    setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log("Login success", result.user);
     } catch (e: any) {
       console.error("Login failed", e);
       if (e.code === "auth/unauthorized-domain") {
@@ -80,6 +86,8 @@ export default function App() {
       } else {
         setLoginError(`로그인 중 오류가 발생했습니다: ${e.message}`);
       }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -125,10 +133,15 @@ export default function App() {
 
           <button
             onClick={handleGoogleLogin}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 active:scale-95"
+            disabled={isLoggingIn}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 active:scale-95 disabled:opacity-50"
           >
-            <img src="https://www.google.com/favicon.ico" alt="Google" className="h-5 w-5" />
-            Google 계정으로 로그인
+            {isLoggingIn ? (
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            ) : (
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="h-5 w-5" />
+            )}
+            {isLoggingIn ? "로그인 중..." : "Google 계정으로 로그인"}
           </button>
 
           {loginError && (
@@ -222,8 +235,23 @@ export default function App() {
         </div>
       </aside>
 
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <main className="flex-grow flex flex-col bg-[#F8FAFC] overflow-hidden">
+      <main 
+        className="flex-grow flex flex-col bg-[#F8FAFC] overflow-hidden relative"
+        onClick={() => {
+          if (sidebarOpen && window.innerWidth < 1024) {
+            setSidebarOpen(false);
+          }
+        }}
+      >
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <button 
@@ -295,7 +323,7 @@ export default function App() {
   );
 }
 
-function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+function SidebarItem({ icon, label, active, onClick }: { icon: ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
     <button
       onClick={onClick}
